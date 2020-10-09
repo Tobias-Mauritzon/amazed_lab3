@@ -31,6 +31,7 @@ public class ForkJoinSolver
     public ForkJoinSolver(Maze maze)
     {
         super(maze);
+        
     }
 
     /**
@@ -64,11 +65,48 @@ public class ForkJoinSolver
     @Override
     public List<Integer> compute()
     {
-        return parallelSearch();
+        return parallelSearch(start);
     }
 
-    private List<Integer> parallelSearch()
+    private List<Integer> parallelSearch(int agileStart)
     {
+    	 // one player active on the maze at start
+        int player = maze.newPlayer(agileStart);
+        // start with start node
+        frontier.push(agileStart);
+        // as long as not all nodes have been processed
+        while (!frontier.empty()) {
+            // get the new node to process
+            int current = frontier.pop();
+            // if current node has a goal
+            if (maze.hasGoal(current)) {
+                // move player to goal
+                maze.move(player, current);
+                // search finished: reconstruct and return path
+                return pathFromTo(start, current);
+            }
+            // if current node has not been visited yet
+            if (!visited.contains(current)) {
+                // move player to current node
+                maze.move(player, current);
+                // mark node as visited
+                visited.add(current);
+                // for every node nb adjacent to current
+                for (int nb: maze.neighbors(current)) {
+                    // add nb to the nodes to be processed
+                    frontier.push(nb);
+                    // if nb has not been already visited,
+                    // nb can be reached from current (i.e., current is nb's predecessor)
+                    if (!visited.contains(nb))
+                        predecessor.put(nb, current);
+                }
+                
+                while(frontier.size() > 1) {
+                	return parallelSearch(frontier.pop());
+                	
+                }
+            }
+        }
         return null;
     }
 }
