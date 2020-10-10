@@ -30,12 +30,14 @@ public class ForkJoinSolver extends SequentialSolver {
 	 */
 
 	private final int branchStart;
+	private final int playerStart;
 	private final static ConcurrentSkipListSet<Integer> concVisited = new ConcurrentSkipListSet<Integer>();
 	private final static ConcurrentHashMap<Integer, Integer> predecessor = new ConcurrentHashMap<Integer, Integer>();
 
 	public ForkJoinSolver(Maze maze) {
 		super(maze);
 		this.branchStart = start;
+		this.playerStart = -11;
 	}
 
 	/**
@@ -56,6 +58,14 @@ public class ForkJoinSolver extends SequentialSolver {
 		super(maze);
 		this.forkAfter = forkAfter;
 		this.branchStart = branchStart;
+		this.playerStart = -11;
+	}
+	
+	public ForkJoinSolver(Maze maze, int forkAfterint, int branchStart, int playerStart) {
+		super(maze);
+		this.forkAfter = forkAfter;
+		this.branchStart = branchStart;
+		this.playerStart = playerStart;
 	}
 
 	/**
@@ -75,7 +85,14 @@ public class ForkJoinSolver extends SequentialSolver {
 	private List<Integer> parallelSearch() {
 		Stack<Integer> frontier = new Stack<>();
 		// one player active on the maze at start
-		int player = maze.newPlayer(branchStart);
+		int player;
+		
+		if(playerStart == -11) {
+			player = maze.newPlayer(branchStart);
+		}else {
+			player = playerStart;
+		}
+		
 		// start with start node
 		frontier.push(branchStart);
 		// as long as not all nodes have been processed
@@ -115,8 +132,8 @@ public class ForkJoinSolver extends SequentialSolver {
 						temp.fork();
 						branchList.add(temp);
 					}
-
-					ForkJoinSolver mainBranch = new ForkJoinSolver(maze, 0, frontier.pop());
+					
+					ForkJoinSolver mainBranch = new ForkJoinSolver(maze, 0, frontier.pop(), player);
 					List<Integer> retVal = mainBranch.compute();
 					if (retVal != null) {
 						return retVal;
