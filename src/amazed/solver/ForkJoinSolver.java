@@ -32,12 +32,13 @@ public class ForkJoinSolver extends SequentialSolver {
 	private final int branchStart;
 	private final int playerStart;
 	private final static ConcurrentSkipListSet<Integer> concVisited = new ConcurrentSkipListSet<Integer>();
-	private final static ConcurrentHashMap<Integer, Integer> predecessor = new ConcurrentHashMap<Integer, Integer>();
+	private HashMap<Integer, Integer> predecessor; 
 
 	public ForkJoinSolver(Maze maze) {
 		super(maze);
 		this.branchStart = start;
 		this.playerStart = -11;
+		this.predecessor = new HashMap<Integer, Integer>();
 	}
 
 	/**
@@ -54,18 +55,20 @@ public class ForkJoinSolver extends SequentialSolver {
 		this.forkAfter = forkAfter;
 	}
 
-	public ForkJoinSolver(Maze maze, int forkAfterint, int branchStart) {
+	public ForkJoinSolver(Maze maze, int forkAfterint, int branchStart, HashMap<Integer, Integer> predecessor) {
 		super(maze);
 		this.forkAfter = forkAfter;
 		this.branchStart = branchStart;
 		this.playerStart = -11;
+		this.predecessor = predecessor;
 	}
 	
-	public ForkJoinSolver(Maze maze, int forkAfterint, int branchStart, int playerStart) {
+	public ForkJoinSolver(Maze maze, int forkAfterint, int branchStart, int playerStart, HashMap<Integer, Integer> predecessor) {
 		super(maze);
 		this.forkAfter = forkAfter;
 		this.branchStart = branchStart;
 		this.playerStart = playerStart;
+		this.predecessor = predecessor;
 	}
 
 	/**
@@ -127,24 +130,28 @@ public class ForkJoinSolver extends SequentialSolver {
 
 				if (frontier.size() > 1) {
 					ArrayList<ForkJoinSolver> branchList = new ArrayList<>();
-					for (int i = frontier.size(); i > 1; i--) {
-						ForkJoinSolver temp = new ForkJoinSolver(maze, 0, frontier.pop());
+					
+					for (int i = frontier.size(); i > 1; i--) {		
+						HashMap<Integer, Integer> newPred = (HashMap<Integer, Integer>) predecessor.clone(); // beöhs här
+						ForkJoinSolver temp = new ForkJoinSolver(maze, 0, frontier.pop(), newPred);
 						temp.fork();
 						branchList.add(temp);
 					}
 					
-					ForkJoinSolver mainBranch = new ForkJoinSolver(maze, 0, frontier.pop(), player);
+					HashMap<Integer, Integer> newPred = (HashMap<Integer, Integer>) predecessor.clone(); // Beöhvs här
+					ForkJoinSolver mainBranch = new ForkJoinSolver(maze, 0, frontier.pop(), player, newPred);
 					List<Integer> retVal = mainBranch.compute();
 					if (retVal != null) {
 						return retVal;
-					}
-
+					}										
+					
 					for (ForkJoinSolver s : branchList) {
 						List<Integer> branchVal = s.join();
 						if (branchVal != null) {
 							return branchVal;
 						}
 					}
+					
 				}
 
 			}
