@@ -103,11 +103,11 @@ public class ForkJoinSolver extends SequentialSolver {
 				return pathFromTo(start, current);
 			}
 			// if current node has not been visited yet
-			if (!concVisited.contains(current)) {
+			//if (!concVisited.contains(current)) {
+			if (concVisited.add(current)) {
 				// move player to current node
 				maze.move(player, current);
 				// mark node as visited
-				concVisited.add(current);
 				taken.add(current); // las till
 				// for every node nb adjacent to current
 
@@ -116,9 +116,10 @@ public class ForkJoinSolver extends SequentialSolver {
 					// frontier.push(nb);
 					// if nb has not been already visited,
 					// nb can be reached from current (i.e., current is nb's predecessor)
-					if (!concVisited.contains(nb) && !taken.contains(nb)) { // vilkor las till
+					//if (!concVisited.contains(nb) && !taken.contains(nb)) { // vilkor las till
+					if (!concVisited.contains(nb) && taken.add(nb)) {	
 						frontier.push(nb);
-						taken.add(nb); // las till
+						//taken.add(nb); // las till
 						predecessor.put(nb, current);
 					}
 				}
