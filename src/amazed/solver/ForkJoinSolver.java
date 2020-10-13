@@ -30,6 +30,7 @@ public class ForkJoinSolver extends SequentialSolver {
 	private final int branchStart;
 	private final int player;
 	private final static ConcurrentSkipListSet<Integer> concVisited = new ConcurrentSkipListSet<Integer>();
+	private final static ConcurrentSkipListSet<Integer> taken = new ConcurrentSkipListSet<Integer>(); // las till
 	private HashMap<Integer, Integer> predecessor; 
 	private static AtomicBoolean abort = new AtomicBoolean();
 
@@ -107,6 +108,7 @@ public class ForkJoinSolver extends SequentialSolver {
 				maze.move(player, current);
 				// mark node as visited
 				concVisited.add(current);
+				taken.add(current); // las till
 				// for every node nb adjacent to current
 
 				for (int nb : maze.neighbors(current)) {
@@ -114,8 +116,9 @@ public class ForkJoinSolver extends SequentialSolver {
 					// frontier.push(nb);
 					// if nb has not been already visited,
 					// nb can be reached from current (i.e., current is nb's predecessor)
-					if (!concVisited.contains(nb)) {
+					if (!concVisited.contains(nb) && !taken.contains(nb)) { // vilkor las till
 						frontier.push(nb);
+						taken.add(nb); // las till
 						predecessor.put(nb, current);
 					}
 				}
