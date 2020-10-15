@@ -4,12 +4,19 @@ import amazed.maze.Maze;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * <code>ForkJoinSolver</code> implements a solver for <code>Maze</code> objects
@@ -30,16 +37,16 @@ public class ForkJoinSolver extends SequentialSolver {
 	private final int branchStart;
 	private final int player;
 	private final static ConcurrentSkipListSet<Integer> concVisited = new ConcurrentSkipListSet<Integer>();
-	private final static ConcurrentSkipListSet<Integer> taken = new ConcurrentSkipListSet<Integer>(); // las till
-	private HashMap<Integer, Integer> predecessor; 
-	private static AtomicBoolean abort = new AtomicBoolean();
-
+	private final static AtomicBoolean abort = new AtomicBoolean();
+	
 	public ForkJoinSolver(Maze maze) {
 		super(maze);
 		this.branchStart = start;
 		this.player = maze.newPlayer(start);
 		
-		this.predecessor = new HashMap<Integer, Integer>();
+		
+		//frontier.push(this.branchStart);
+		concVisited.add(this.branchStart);
 	}
 
 	/**
@@ -62,14 +69,9 @@ public class ForkJoinSolver extends SequentialSolver {
 		this.branchStart = branchStart;
 		this.player = playerId;
 		
-	}
-	
-	public ForkJoinSolver(Maze maze, int forkAfter, int branchStart, int playerId, HashMap<Integer, Integer> predecessor) {
-		super(maze);
-		this.forkAfter = forkAfter;
-		this.branchStart = branchStart;
-		this.player = playerId;
-		this.predecessor = predecessor;
+		
+		//frontier.push(this.branchStart);
+		//concVisited.add(this.branchStart);
 	}
 
 	/**
@@ -85,90 +87,68 @@ public class ForkJoinSolver extends SequentialSolver {
 	public List<Integer> compute() {
 		return parallelSearch();
 	}
-
+	
 	private List<Integer> parallelSearch() {
 		Stack<Integer> frontier = new Stack<>();
-		// start with start node
+		int count = 0;
+		
 		frontier.push(branchStart);
-		// as long as not all nodes have been processed
+		
 		while (!frontier.empty() && !abort.get()) {
-			// get the new node to process
 			int current = frontier.pop();
-			// if current node has a goal
 			if (maze.hasGoal(current)) {
-				// move player to goal
 				maze.move(player, current);
-				// search finished: reconstruct and return path
 				abort.set(true);
-				return pathFromTo(start, current);
+				return pathFromTo(branchStart, current);
 			}
-			// if current node has not been visited yet
-			//if (!concVisited.contains(current)) {
-			if (concVisited.add(current)) {
-				// move player to current node
-				maze.move(player, current);
-				// mark node as visited
-				taken.add(current); // las till
-				// for every node nb adjacent to current
-
-				for (int nb : maze.neighbors(current)) {
-					// add nb to the nodes to be processed
-					// frontier.push(nb);
-					// if nb has not been already visited,
-					// nb can be reached from current (i.e., current is nb's predecessor)
-					//if (!concVisited.contains(nb) && !taken.contains(nb)) { // vilkor las till
-					if (!concVisited.contains(nb) && taken.add(nb)) {	
-						frontier.push(nb);
-						//taken.add(nb); // las till
-						predecessor.put(nb, current);
-					}
+			
+			maze.move(player, current);
+			int branchListSize = 0;
+			for (int nb : maze.neighbors(current)) {
+				if (concVisited.add(nb)) {	
+					frontier.push(nb);
+					predecessor.put(nb, current);
+					branchListSize++;
 				}
+			}
 
-				if (frontier.size() > 1) {
-					int branchListSize = frontier.size();
-					ArrayList<ForkJoinSolver> branchList = new ArrayList<>();
-					for (int i = 0; i < branchListSize - 1; i++) {
-						int node = frontier.pop();
-						HashMap<Integer, Integer> newPred = (HashMap<Integer, Integer>) predecessor.clone();
-						ForkJoinSolver temp = new ForkJoinSolver(maze, 0, node, maze.newPlayer(node), newPred);
-						branchList.add(temp);
-					}
-					
-					HashMap<Integer, Integer> newPred = (HashMap<Integer, Integer>) predecessor.clone(); // Beöhvs här
-					ForkJoinSolver mainBranch = new ForkJoinSolver(maze, 0, frontier.pop(), player, newPred);
+			if (branchListSize > 1 && count >= forkAfter) {
+				ArrayList<ForkJoinSolver> branchList = new ArrayList<>();
 				
-					for (ForkJoinSolver i :branchList) {
-						i.fork();
-					}
-					
-					List<Integer> retVal = mainBranch.compute();
+				for (int i = 0; i < branchListSize - 1; i++) {
+					int node = frontier.pop();
+					ForkJoinSolver temp = new ForkJoinSolver(maze, forkAfter, node, maze.newPlayer(node));
+					branchList.add(temp);
+				}
+
+				ForkJoinSolver mainBranch = new ForkJoinSolver(maze, forkAfter, frontier.pop(), player);
+				for (ForkJoinSolver i :branchList) {
+					i.fork();
+				}
+				
+				List<Integer> retVal = mainBranch.compute();
+				if (retVal != null) {
+					return append(pathFromTo(branchStart, current), retVal);
+				}
+				
+				for (ForkJoinSolver i :branchList) {
+					retVal = i.join();
 					if (retVal != null) {
-						return retVal;
-					}
-					
-					for (ForkJoinSolver i :branchList) {
-						retVal = i.join();
-						if (retVal != null) {
-							return retVal;
-						}
+						return append(pathFromTo(branchStart, current), retVal);
 					}
 				}
-			}
+			} else count++;
 		}
 		return null;
 	}
-
-	protected List<Integer> pathFromTo(int from, int to) {
-		List<Integer> path = new LinkedList<>();
-		Integer current = to;
-		while (current != from) {
-			path.add(current);
-			current = predecessor.get(current);
-			if (current == null)
-				return null;
-		}
-		path.add(from);
-		Collections.reverse(path);
-		return path;
+	
+	/**
+	 * Appends a list to the end of another list
+	 * @param list List to append
+	 * @param branchList The list to append to the end of parameter list
+	 * @return Appended list of type LinkedList<Integer>
+	 */
+	private List<Integer> append(List<Integer> list, List<Integer> branchList){
+		return Stream.concat(list.stream(), branchList.stream()).collect(Collectors.toList());
 	}
 }
