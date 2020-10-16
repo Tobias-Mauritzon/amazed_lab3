@@ -119,9 +119,9 @@ public class ForkJoinSolver extends SequentialSolver {
 			
 			int branchListSize = 0; // Number of nodes at the current end of the branch
 			
-			// For each neighbor to current
-			// Try to reserve the neighbor
-			// If success push neighbor to stack, add to predecessor, and increase branchListSize with 1
+			// For each neighbour to current
+			// Try to reserve the neighbour
+			// If success push neighbour to stack, add to predecessor, and increase branchListSize with 1
 			// else do nothing
 			for (int nb : maze.neighbors(current)) {
 				if (concVisited.add(nb)) {	
