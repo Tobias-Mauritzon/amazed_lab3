@@ -27,26 +27,23 @@ import java.util.stream.Stream;
  */
 
 public class ForkJoinSolver extends SequentialSolver {
-	/**
-	 * Creates a solver that searches in <code>maze</code> from the start node to a
-	 * goal.
-	 *
-	 * @param maze the maze to be searched
-	 */
 
 	private final int branchStart;
 	private final int player;
 	private final static ConcurrentSkipListSet<Integer> concVisited = new ConcurrentSkipListSet<Integer>();
 	private final static AtomicBoolean abort = new AtomicBoolean();
 	
+	/**
+	 * Creates a solver that searches for a goal in the given maze. 
+	 * Also creates a new player and reserves the first maze node to the created solver. 
+	 * @param maze		The maze to be searched
+	 */
 	public ForkJoinSolver(Maze maze) {
 		super(maze);
 		this.branchStart = start;
 		this.player = maze.newPlayer(start);
 		
-		
-		//frontier.push(this.branchStart);
-		concVisited.add(this.branchStart);
+		concVisited.add(this.branchStart); //Reserves the start node to the root branch
 	}
 
 	/**
@@ -63,15 +60,18 @@ public class ForkJoinSolver extends SequentialSolver {
 		this.forkAfter = forkAfter;
 	}
 
+	/**
+	 * This constructor is used internally to create new branches
+	 * @param maze	the maze to be searched
+	 * @param forkAfter the number of steps a branch should take before branching
+	 * @param branchStart the first node in the branch
+	 * @param playerId the player that is created for this branch walk this branch
+	 */
 	private ForkJoinSolver(Maze maze, int forkAfter, int branchStart, int playerId) {
 		super(maze);
 		this.forkAfter = forkAfter;
 		this.branchStart = branchStart;
 		this.player = playerId;
-		
-		
-		//frontier.push(this.branchStart);
-		//concVisited.add(this.branchStart);
 	}
 
 	/**
@@ -88,22 +88,35 @@ public class ForkJoinSolver extends SequentialSolver {
 		return parallelSearch();
 	}
 	
+	/**
+	 * This method handles the search for a goal in a maze
+	 * @return The path in the form of a list from branch start to goal if the goal has been found, otherwise null
+	 */
 	private List<Integer> parallelSearch() {
-		Stack<Integer> frontier = new Stack<>();
-		int count = 0;
+		//Stack<Integer> frontier = new Stack<>(); // Create new stack for the branch
+		int count = 0; // Creates a new count variable for each branch
 		
-		frontier.push(branchStart);
+		frontier.push(branchStart); // Pushes the start of the branch to the stack
 		
+		// As long as the solver has more nodes to visit and no one has found the goal
 		while (!frontier.empty() && !abort.get()) {
-			int current = frontier.pop();
+			
+			int current = frontier.pop(); // Gets top of stack to explore 
+			
+			// If current is goal 
+			// Move player to goal and tell other branches to stop looking 
+			// return path from branchStart to goal
 			if (maze.hasGoal(current)) {
 				maze.move(player, current);
 				abort.set(true);
 				return pathFromTo(branchStart, current);
 			}
 			
-			maze.move(player, current);
-			int branchListSize = 0;
+			maze.move(player, current); // Move player to current
+			
+			int branchListSize = 0; // Number of nodes at the current end of the branch
+			
+			// For each 
 			for (int nb : maze.neighbors(current)) {
 				if (concVisited.add(nb)) {	
 					frontier.push(nb);
@@ -143,10 +156,10 @@ public class ForkJoinSolver extends SequentialSolver {
 	}
 	
 	/**
-	 * Appends a list to the end of another list
-	 * @param list List to append
-	 * @param branchList The list to append to the end of parameter list
-	 * @return Appended list of type LinkedList<Integer>
+	 * Appends a given list to the end of another list
+	 * @param list 			List to append
+	 * @param branchList 	The list to append to the end of parameter list
+	 * @return Appended 	list of type LinkedList<Integer>
 	 */
 	private List<Integer> append(List<Integer> list, List<Integer> branchList){
 		return Stream.concat(list.stream(), branchList.stream()).collect(Collectors.toList());
