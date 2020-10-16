@@ -24,14 +24,17 @@ import java.util.stream.Stream;
  * <p>
  * Instances of <code>ForkJoinSolver</code> should be run by a
  * <code>ForkJoinPool</code> object.
+ * 
+ * @author Joachim Antfolk, Tobias Mauritzon
+ * @since 16-10-2020
  */
 
 public class ForkJoinSolver extends SequentialSolver {
 
-	private final int branchStart;
-	private final int player;
-	private final static ConcurrentSkipListSet<Integer> concVisited = new ConcurrentSkipListSet<Integer>();
-	private final static AtomicBoolean abort = new AtomicBoolean();
+	private final int branchStart; // The node that this branch started on
+	private final int player; // The player that walks this branch
+	private final static ConcurrentSkipListSet<Integer> concVisited = new ConcurrentSkipListSet<Integer>(); // The Thread-safe set that keeps track of visited/reserved nodes 
+	private final static AtomicBoolean abort = new AtomicBoolean(); // The Thread-safe flag that tells all branches if they should keep looking 
 	
 	/**
 	 * Creates a solver that searches for a goal in the given maze. 
@@ -93,7 +96,7 @@ public class ForkJoinSolver extends SequentialSolver {
 	 * @return The path in the form of a list from branch start to goal if the goal has been found, otherwise null
 	 */
 	private List<Integer> parallelSearch() {
-		//Stack<Integer> frontier = new Stack<>(); // Create new stack for the branch
+		Stack<Integer> frontier = new Stack<>(); // Create new stack for the branch
 		int count = 0; // Creates a new count variable for each branch
 		
 		frontier.push(branchStart); // Pushes the start of the branch to the stack
@@ -116,7 +119,10 @@ public class ForkJoinSolver extends SequentialSolver {
 			
 			int branchListSize = 0; // Number of nodes at the current end of the branch
 			
-			// For each 
+			// For each neighbor to current
+			// Try to reserve the neighbor
+			// If success push neighbor to stack, add to predecessor, and increase branchListSize with 1
+			// else do nothing
 			for (int nb : maze.neighbors(current)) {
 				if (concVisited.add(nb)) {	
 					frontier.push(nb);
@@ -125,32 +131,44 @@ public class ForkJoinSolver extends SequentialSolver {
 				}
 			}
 
+			// If end of branch has more than one possible path and solver has taken forkAfter steps. 
+			// Else if count is smaller than forkAfter increase count by one
 			if (branchListSize > 1 && count >= forkAfter) {
-				ArrayList<ForkJoinSolver> branchList = new ArrayList<>();
+				ArrayList<ForkJoinSolver> branchList = new ArrayList<>(); // New list of branches
 				
+				// For all but one of the nodes at the end of the branch
 				for (int i = 0; i < branchListSize - 1; i++) {
-					int node = frontier.pop();
-					ForkJoinSolver temp = new ForkJoinSolver(maze, forkAfter, node, maze.newPlayer(node));
-					branchList.add(temp);
+					int node = frontier.pop(); // Get start-node of new branch 
+					ForkJoinSolver branch = new ForkJoinSolver(maze, forkAfter, node, maze.newPlayer(node)); // Create new solver with node as start and a new player
+					branchList.add(branch); // Add branch to branchList
 				}
 
+				// Make new solver for the remaining node at the end of the branch with current player
 				ForkJoinSolver mainBranch = new ForkJoinSolver(maze, forkAfter, frontier.pop(), player);
-				for (ForkJoinSolver i :branchList) {
-					i.fork();
+				
+				// Fork each ForkJoinSolver in branchList
+				for (ForkJoinSolver branch: branchList) {
+					branch.fork();
 				}
 				
+				// Tell main branch to compute and if the return list is not null
+				// Return appended list from the start of this branch to the goal
 				List<Integer> retVal = mainBranch.compute();
 				if (retVal != null) {
 					return append(pathFromTo(branchStart, current), retVal);
 				}
 				
-				for (ForkJoinSolver i :branchList) {
-					retVal = i.join();
+				// Join each ForkJoinSolver in branchList and if the return list from the join is not null
+				// Return appended list from the start of this branch to the goal
+				for (ForkJoinSolver branch: branchList) {
+					retVal = branch.join();
 					if (retVal != null) {
 						return append(pathFromTo(branchStart, current), retVal);
 					}
 				}
-			} else count++;
+			} else if(count < forkAfter){
+				count++;
+			}
 		}
 		return null;
 	}
