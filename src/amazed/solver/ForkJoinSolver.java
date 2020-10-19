@@ -96,7 +96,6 @@ public class ForkJoinSolver extends SequentialSolver {
 	 * @return The path in the form of a list from branch start to goal if the goal has been found, otherwise null
 	 */
 	private List<Integer> parallelSearch() {
-		Stack<Integer> frontier = new Stack<>(); // Create new stack for the branch
 		int count = 0; // Creates a new count variable for each branch
 		
 		frontier.push(branchStart); // Pushes the start of the branch to the stack
