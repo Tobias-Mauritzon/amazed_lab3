@@ -4,17 +4,8 @@ import amazed.maze.Maze;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Set;
-import java.util.Stack;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -26,7 +17,7 @@ import java.util.stream.Stream;
  * <code>ForkJoinPool</code> object.
  * 
  * @author Joachim Antfolk, Tobias Mauritzon
- * @since 16-10-2020
+ * @since 2020-10-19
  */
 
 public class ForkJoinSolver extends SequentialSolver {
